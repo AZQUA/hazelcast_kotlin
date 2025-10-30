@@ -9,19 +9,12 @@ import com.hazelcast.collection.ISet
 fun main(args: Array<String>) {
     println("Démarrage...")
     val hazelcastInstance1 = Hazelcast.newHazelcastInstance()
-    val maListe: IList<Int> = hazelcastInstance1.getList("ma-liste")
-    val monSet: ISet<String> = hazelcastInstance1.getSet("mon-set")
-    for (i in 1..10) {
-        maListe.add(i)
-    }
-    monSet.add("Alpha")
-    monSet.add("Bravo")
-    monSet.add("Alpha")
-    println("taille de ma liste : ${maListe.size}")
-    println(maListe.joinToString(", "))
-    println("Taille de mon set : ${monSet.size}")
-    println(monSet.joinToString(", "))
-    
-    
+    val hazelcastInstance2 = Hazelcast.newHazelcastInstance()
+    val maMap1: IMap<String, String> = hazelcastInstance1.getMap("ma-Map")
+    val maMap2: IMap<String, String> = hazelcastInstance2.getMap("ma-Map")
+    maMap1.put("test-cle","donne-instance-1")
+    val valeurLue = maMap2.get("test-cle")
+    println(valeurLue)
     hazelcastInstance1.shutdown()
+    hazelcastInstance2.shutdown()
 }
