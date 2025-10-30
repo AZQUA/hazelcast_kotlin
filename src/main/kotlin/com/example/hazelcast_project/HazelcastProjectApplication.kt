@@ -7,7 +7,8 @@ import com.hazelcast.collection.ISet
 import com.hazelcast.collection.IQueue
 import kotlinx.coroutines.*
 import com.hazelcast.topic.ITopic
-import java.util.EventListener
+import com.hazelcast.topic.Message
+import com.hazelcast.topic.MessageListener
 
 
 fun main(args: Array<String>) {
