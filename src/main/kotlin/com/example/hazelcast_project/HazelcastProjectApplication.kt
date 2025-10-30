@@ -6,26 +6,31 @@ import com.hazelcast.collection.IList
 import com.hazelcast.collection.ISet
 import com.hazelcast.collection.IQueue
 import kotlinx.coroutines.*
+import com.hazelcast.core.EntryListener
+import com.hazelcast.core.EntryAdapter
+import com.hazelcast.core.EntryEvent 
 
 
-fun main(args: Array<String>) = runBlocking {
+fun main(args: Array<String>) {
     println("Démarrage...")
     val hazelcastInstance1 = Hazelcast.newHazelcastInstance()
-    val maQueue:IQueue<String> = hazelcastInstance1.getQueue("ma-queue")
-    launch {
-        for (i in 1..20) {
-            maQueue.put("Message ${i}")
-            println("Producteur : à envoyé un 'Message ${i}'.")
-            delay(100)
+    val mapListener: IMap<String, String> = hazelcastInstance1.getMap("ma-map")
+    mapListener.addEntryListener(object : EntryAdapter<String,String>() {
+        override fun entryAdded(event: EntryEvent<String, String>) {
+            val timestampActuel = java.util.Date()
+            println("Listener Donnée AJOUTEE : Clé=${event.key}, Valeur=${event.value}, Date=${timestampActuel}")
         }
-    }
-    launch {
-        for (i in 1..20) {
-            val message = maQueue.take()
-            println("Consomateur : à reçu un '$message'")
-            delay(100)
+        override fun entryUpdated(event: EntryEvent<String, String>) {
+            val timestampActuel = java.util.Date()
+            println("LISTENER Donnée MISE A JOUR : Clé=${event.key}, NouvelleValeur=${event.value}, Date=${timestampActuel}")
         }
-    }
-    delay(20000)
-    hazelcastInstance1.shutdown()
+        override fun entryRemoved(event: EntryEvent<String, String>) {
+            val timestampActuel = java.util.Date()
+            println("LISTENER Donnée SUPPRIMEE : Clé=${event.key}, Date=${timestampActuel}")
+        }
+    }, true)
+
+    mapListener.put("cle-1","donnee-1")
+    mapListener.put("cle-1","donnee-1-modif")
+    mapListener.remove("cle-1")
 }
