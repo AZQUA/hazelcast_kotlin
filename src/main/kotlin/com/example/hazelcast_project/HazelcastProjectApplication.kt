@@ -2,70 +2,42 @@ package com.example.hazelcast_project
 
 import com.hazelcast.core.Hazelcast
 import com.hazelcast.map.IMap
-import com.example.hazelcast_project.IncrementingProcessor
-import com.hazelcast.core.IExecutorService
-import java.io.Serializable
-import java.util.concurrent.Callable
-import com.hazelcast.cp.lock.FencedLock
-import kotlinx.coroutines.*
-import java.util.concurrent.TimeUnit
+import com.hazelcast.config.Config
+import com.hazelcast.config.NearCacheConfig
+import kotlin.system.measureTimeMillis
+import com.hazelcast.nearcache.NearCacheStats
+import com.hazelcast.map.LocalMapStats
 
-fun main(args: Array<String>) = runBlocking {
-    println("Démarrage...")
-    val hazelcastInstance1 = Hazelcast.newHazelcastInstance()
-    val verrou : FencedLock = hazelcastInstance1.cpSubsystem.getLock("mon-verrou")
-    val threadA = newSingleThreadContext("lock-A")
-    val threadB = newSingleThreadContext("lock-B")
-    val jobA = launch {
-        println("Tentative de lock de l'utilisateur A")
-        withContext(threadA) {
-        val acquired = verrou.tryLock(2, TimeUnit.SECONDS)
-            if (acquired) {
-                try {
-                    println("J'ai le verrou ! je fais mon travail critique...")
-                    delay(5000)
-                    println("J'ai fini mon travail.")
-                } finally {
-                    verrou.unlock()
-                    println("Verrou rendu par l'utilisateur A")
-                }
-            }
-            else {
-                println("Timeout dépassé, abandon")
-            }
-        }
+fun main(args: Array<String>) {
+    val nearCacheConfig = NearCacheConfig()
+    nearCacheConfig.name = "default"
+    nearCacheConfig.timeToLiveSeconds=60
+    val config = Config()
+    config.getMapConfig("ma-map-rapide").nearCacheConfig = nearCacheConfig
+    println("Démarrage de l'instance avec le Near Cache activé...")
+    val hazelcastInstance1 = Hazelcast.newHazelcastInstance(config)
+    val hazelcastInstance2 = Hazelcast.newHazelcastInstance(config)
+    val map1: IMap<String, String> = hazelcastInstance1.getMap("ma-map-rapide")
+    val map2: IMap<String, String> = hazelcastInstance2.getMap("ma-map-rapide")
+    println("L'intance est prête...")
+    map1.put("cle-1", "ma-donnee-rapide")
+    println("\nDonnée mise en cache (put).")
+    println("--- Première lecture (devrait être un 'MISS') ---")
+    val temps1 = measureTimeMillis {
+        map2.get("cle-1")
     }
-    val jobB = launch {
-        println("Tentative de lock de l'utilisateur B")
-        withContext(threadB) {
-            val acquired = verrou.tryLock(2, TimeUnit.SECONDS)
-            if (acquired) {
-                try {
-                    println("J'ai le verrou ! je fais mon travail critique...")
-                    delay(5000)
-                    println("J'ai fini mon travail.")
-                } finally {
-                    verrou.unlock()
-                    println("Verrou rendu par l'utilisateur B")
-                }
-            }
-            else {
-                println("Timeout dépassé, abandon")
-            }
-        }
+    println("Temps de la 1ère lecture (réseau) : $temps1 ms")
+    println("\n--- Deuxième lecture (devrait être un 'HIT') ---")
+    val temps2 = measureTimeMillis {
+        map2.get("cle-1")
     }
-    jobA.join()
-    jobB.join()
-    threadA.close()
-    threadB.close()
+    println("Temps de la 2ème lecture (local) : $temps2 ms")
+    val stats: NearCacheStats? = map2.localMapStats.nearCacheStats
+
+    println("\n--- Statistiques Officielles du Near Cache ---")
+    println("Nombre de 'HITS' (trouvé localement) : ${stats?.hits}")
+    println("Nombre de 'MISSES' (allé chercher sur le réseau) : ${stats?.misses}")
     hazelcastInstance1.shutdown()
+    hazelcastInstance2.shutdown()
 }
 
-class MaTacheSerializable : Callable<String>, Serializable {
-    override fun call(): String {
-        // Code exécuté sur le membre distant
-        println("--- Je m'exécute sur un membre du cluster ! ---")
-        Thread.sleep(1000) // Simule un long calcul
-        return "Le calcul est terminé !"
-    }
-}
