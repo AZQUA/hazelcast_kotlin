@@ -3,41 +3,37 @@ package com.example.hazelcast_project
 import com.hazelcast.core.Hazelcast
 import com.hazelcast.map.IMap
 import com.hazelcast.config.Config
-import com.hazelcast.config.NearCacheConfig
-import kotlin.system.measureTimeMillis
-import com.hazelcast.nearcache.NearCacheStats
-import com.hazelcast.map.LocalMapStats
+import com.hazelcast.config.MapConfig
+import com.hazelcast.config.MapStoreConfig
+import com.example.hazelcast_project.PersonMapStore
+import com.example.hazelcast_project.Person
 
 fun main(args: Array<String>) {
-    val nearCacheConfig = NearCacheConfig()
-    nearCacheConfig.name = "default"
-    nearCacheConfig.timeToLiveSeconds=60
+    val mapStoreConfig = MapStoreConfig()
+    mapStoreConfig.setImplementation(PersonMapStore()) 
+    mapStoreConfig.setWriteDelaySeconds(0) 
     val config = Config()
-    config.getMapConfig("ma-map-rapide").nearCacheConfig = nearCacheConfig
-    println("Démarrage de l'instance avec le Near Cache activé...")
+    config.getMapConfig("personnes-db").setMapStoreConfig(mapStoreConfig)
+    println("Démarrage de l'instance avec MapStore activé...")
     val hazelcastInstance1 = Hazelcast.newHazelcastInstance(config)
-    val hazelcastInstance2 = Hazelcast.newHazelcastInstance(config)
-    val map1: IMap<String, String> = hazelcastInstance1.getMap("ma-map-rapide")
-    val map2: IMap<String, String> = hazelcastInstance2.getMap("ma-map-rapide")
-    println("L'intance est prête...")
-    map1.put("cle-1", "ma-donnee-rapide")
-    println("\nDonnée mise en cache (put).")
-    println("--- Première lecture (devrait être un 'MISS') ---")
-    val temps1 = measureTimeMillis {
-        map2.get("cle-1")
-    }
-    println("Temps de la 1ère lecture (réseau) : $temps1 ms")
-    println("\n--- Deuxième lecture (devrait être un 'HIT') ---")
-    val temps2 = measureTimeMillis {
-        map2.get("cle-1")
-    }
-    println("Temps de la 2ème lecture (local) : $temps2 ms")
-    val stats: NearCacheStats? = map2.localMapStats.nearCacheStats
-
-    println("\n--- Statistiques Officielles du Near Cache ---")
-    println("Nombre de 'HITS' (trouvé localement) : ${stats?.hits}")
-    println("Nombre de 'MISSES' (allé chercher sur le réseau) : ${stats?.misses}")
+    val personnesMap1: IMap<String, Person> = hazelcastInstance1.getMap("personnes-db")
+    println("\n--- TEST PARTIE 1 : Écriture en BDD ---")
+    val alice = Person("Alice", 30, "Paris")
+    personnesMap1.put("alice-001", alice)
+    println("Donnée 'alice-001' est dans la RAM : ${personnesMap1.get("alice-001")}")
+    println("\nArrêt de l'instance 1 (RAM vidée)...")
     hazelcastInstance1.shutdown()
+    println("\n--- TEST PARTIE 2 : Re-démarrage et lecture ---")
+    val hazelcastInstance2 = Hazelcast.newHazelcastInstance(config)
+    val personnesMap2: IMap<String, Person> = hazelcastInstance2.getMap("personnes-db")
+    println("Tentative de lecture de 'alice-001' depuis la nouvelle instance...")
+    val aliceFromDb = personnesMap2.get("alice-001") 
+    println("Donnée récupérée depuis la BDD : $aliceFromDb")
+    if (aliceFromDb != null) {
+        println("SUCCÈS ! 🚀 La donnée a été persistée et rechargée.")
+    } else {
+        println("ÉCHEC. La donnée n'a pas été trouvée.")
+    }
     hazelcastInstance2.shutdown()
 }
 

@@ -31,6 +31,7 @@ dependencies {
 	implementation("com.hazelcast:hazelcast:5.3.6")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+	implementation("com.h2database:h2:2.2.224")
 }
 
 
