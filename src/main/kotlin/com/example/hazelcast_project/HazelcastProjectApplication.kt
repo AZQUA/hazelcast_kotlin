@@ -97,11 +97,27 @@ fun main(args: Array<String>) = runBlocking {
         }
         println("[Worker C 👷] Signal d'arrêt reçu. Arrêt.")
     }
+    val jobR = launch(Dispatchers.IO) {
+        println("[Retry Worker 🧹] Surveillance des échecs...")
+        while (flag) {
+            val tacheEchouee = tacheEchec.take() 
+            if (tacheEchouee == -1) {
+                break 
+            }
+            println("[Retry Worker 🧹] Tâche $tacheEchouee trouvée. Attente de 2s...")
+            delay(2000)
+            println("[Retry Worker 🧹] Remise de la tâche $tacheEchouee dans la file principale.")
+            tacheAFaire.put(tacheEchouee) 
+        }
+        println("[Retry Worker 🧹] Signal d'arrêt reçu. Arrêt.")
+    }
     println("\nMain : Attente de la fin de toutes les tâches (barrière)...")
     jobP.join()
     jobA.join()
     jobB.join()
     jobC.join()
+    tacheEchec.put(-1)
+    jobR.join()
     println("Main : Toutes les tâches sont terminées !")
     println("\n--- Contenu final de la map 'resultats' ---")
     resultat.forEach { cle, valeur ->
