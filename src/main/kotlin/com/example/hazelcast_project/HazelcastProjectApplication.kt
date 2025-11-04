@@ -15,6 +15,7 @@ fun main(args: Array<String>) = runBlocking {
         println("[Producteur 🧑‍🌾] Démarrage...")
         for (i in 1..20) {
             tacheAFaire.add(i)
+            
             println("[Producteur 🧑‍🌾] Tâche $i ajoutée.")
         }
         println("[Producteur 🧑‍🌾] Tâches envoyées. Envoi des 3 signaux d'arrêt...")
@@ -22,12 +23,13 @@ fun main(args: Array<String>) = runBlocking {
         println("[Producteur 🧑‍🌾] Signaux envoyés. Terminé.")
         println(tacheAFaire.joinToString())
     }
-    delay(10)
+    
     val jobA = launch {
         println("[Worker A 👷] Prêt au travail.")
         while (flag) {
             println(tacheAFaire.joinToString())
             val tacheActuelle:Int = tacheAFaire.take()
+            delay(10)
             if (tacheActuelle == -1) {
                 break
             }
@@ -41,7 +43,7 @@ fun main(args: Array<String>) = runBlocking {
         while (flag) {
             println(tacheAFaire.joinToString())
             val tacheActuelle:Int = tacheAFaire.take()
-
+            delay(10)
             if (tacheActuelle == -1) {
                 break
             }
@@ -55,7 +57,7 @@ fun main(args: Array<String>) = runBlocking {
         while (flag) {
             println(tacheAFaire.joinToString())
             val tacheActuelle:Int = tacheAFaire.take()
-            
+            delay(10)
             if (tacheActuelle == -1) {
                 break
             }
